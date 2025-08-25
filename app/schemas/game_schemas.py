@@ -20,6 +20,7 @@ class Player(PlayerBase):
 class LobbyCreate(BaseModel):
     host_name: str = Field(..., min_length=1, max_length=30)
     game_type: Literal["clicker", "trivia"] = "clicker"
+    custom_room_code: Optional[str] = Field(None, min_length=4, max_length=6)
 
 class LobbyResponse(BaseModel):
     room_code: str

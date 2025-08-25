@@ -27,6 +27,7 @@ class GameClient {
         });
         
         document.getElementById('host-name').addEventListener('input', () => this.validateHostForm());
+        document.getElementById('custom-room-code').addEventListener('input', () => this.validateHostForm());
         document.getElementById('create-lobby-btn').addEventListener('click', () => this.createLobby());
         
         document.getElementById('room-code').addEventListener('input', () => this.validateJoinForm());
@@ -77,6 +78,7 @@ class GameClient {
     // Lobby Management
     async createLobby() {
         const hostName = document.getElementById('host-name').value.trim();
+        const customRoomCode = document.getElementById('custom-room-code').value.trim().toUpperCase();
         
         if (!this.selectedGame) {
             this.showMessage('Please select a game type first!', 'error');
@@ -84,15 +86,21 @@ class GameClient {
         }
         
         try {
-            console.log('Creating lobby:', { host_name: hostName, game_type: this.selectedGame });
+            const requestData = {
+                host_name: hostName,
+                game_type: this.selectedGame
+            };
+            
+            if (customRoomCode) {
+                requestData.custom_room_code = customRoomCode;
+            }
+            
+            console.log('Creating lobby:', requestData);
             
             const response = await fetch('/api/lobbies', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    host_name: hostName,
-                    game_type: this.selectedGame
-                })
+                body: JSON.stringify(requestData)
             });
             
             console.log('Response status:', response.status);
@@ -184,11 +192,14 @@ class GameClient {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/${this.lobbyData.room_code}/${this.playerData.player_id}`;
         
+        console.log('Connecting WebSocket:', wsUrl);
         this.websocket = new WebSocket(wsUrl);
         
         this.websocket.onopen = () => {
-            console.log('WebSocket connected');
+            console.log('WebSocket connected successfully');
             this.startHeartbeat();
+            // Request fresh lobby data on connect
+            this.refreshLobbyData();
         };
         
         this.websocket.onmessage = (event) => {
@@ -233,17 +244,21 @@ class GameClient {
                 // Heartbeat response
                 break;
                 
-            case 'lobby_updated':
-                this.updateLobbyFromWS(data);
-                break;
-                
-            case 'player_joined':
-                this.showMessage(`${data.player.name} joined the lobby`, 'success');
-                break;
-                
-            case 'player_left':
-                this.showMessage(`${data.player_name} left the lobby`, 'warning');
-                break;
+                    case 'lobby_updated':
+            this.updateLobbyFromWS(data);
+            break;
+            
+        case 'player_joined':
+            this.showMessage(`${data.player.name} joined the lobby`, 'success');
+            // Refresh lobby data to show new player
+            await this.refreshLobbyData();
+            break;
+            
+        case 'player_left':
+            this.showMessage(`${data.player_name} left the lobby`, 'warning');
+            // Refresh lobby data to remove player
+            await this.refreshLobbyData();
+            break;
                 
             case 'chat_message':
                 this.addChatMessage(data);
@@ -314,6 +329,20 @@ class GameClient {
         }
     }
     
+    async refreshLobbyData() {
+        try {
+            const response = await fetch(`/api/lobbies/${this.lobbyData.room_code}`);
+            if (response.ok) {
+                const lobby = await response.json();
+                this.lobbyData = lobby;
+                this.updatePlayersList();
+                this.updateLobbyActions();
+            }
+        } catch (error) {
+            console.error('Failed to refresh lobby data:', error);
+        }
+    }
+    
     updatePlayersList() {
         const list = document.getElementById('players-list');
         list.innerHTML = '';
@@ -355,6 +384,8 @@ class GameClient {
     // Lobby Actions
     toggleReady() {
         const isReady = !this.playerData.is_ready;
+        console.log(`Player ${this.playerData.player_id} toggling ready: ${isReady}`);
+        
         this.playerData.is_ready = isReady;
         
         this.sendWebSocketMessage(isReady ? 'player_ready' : 'player_unready');
@@ -688,6 +719,7 @@ class GameClient {
         
         // Reset forms
         document.getElementById('host-name').value = '';
+        document.getElementById('custom-room-code').value = '';
         document.getElementById('room-code').value = '';
         document.getElementById('player-name').value = '';
         document.getElementById('chat-input').value = '';

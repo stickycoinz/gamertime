@@ -12,11 +12,21 @@ router = APIRouter()
 @router.post("/lobbies", response_model=LobbyResponse, status_code=status.HTTP_201_CREATED)
 async def create_lobby(lobby_data: LobbyCreate):
     """Create a new game lobby"""
-    room_code = generate_room_code()
     
-    # Ensure unique room code
-    while await storage.get_lobby(room_code):
+    # Use custom room code if provided, otherwise generate one
+    if lobby_data.custom_room_code:
+        room_code = lobby_data.custom_room_code.upper()
+        # Check if custom code is already taken
+        if await storage.get_lobby(room_code):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Room code '{room_code}' is already taken"
+            )
+    else:
         room_code = generate_room_code()
+        # Ensure unique room code
+        while await storage.get_lobby(room_code):
+            room_code = generate_room_code()
     
     # Generate host player
     host_player_id = generate_player_id(lobby_data.host_name)
