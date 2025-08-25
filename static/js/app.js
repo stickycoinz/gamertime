@@ -48,6 +48,11 @@ class GameClient {
         document.getElementById('click-btn').addEventListener('click', () => this.handleClick());
         document.getElementById('buzz-btn').addEventListener('click', () => this.handleBuzz());
         
+        // Buzzer Game screen
+        document.getElementById('main-buzz-btn').addEventListener('click', () => this.handleMainBuzz());
+        document.getElementById('new-round-btn').addEventListener('click', () => this.newRound());
+        document.getElementById('end-buzzer-game-btn').addEventListener('click', () => this.endBuzzerGame());
+        
         // Results screen
         document.getElementById('play-again-btn').addEventListener('click', () => this.playAgain());
         document.getElementById('back-to-lobby-btn').addEventListener('click', () => this.backToLobby());
@@ -303,7 +308,11 @@ class GameClient {
                 
                                 case 'player_buzzed':
                 this.handlePlayerBuzzed(data);
-                this.updateBuzzerTable(data.buzz_table);
+                if (this.gameState?.type === 'trivia') {
+                    this.updateBuzzerTable(data.buzz_table);
+                } else if (this.gameState?.type === 'buzzer') {
+                    this.updateBuzzerGameTable(data.buzz_table);
+                }
                 break;
 
             case 'buzzer_cleared':
@@ -322,6 +331,14 @@ class GameClient {
 
             case 'buzz_error':
                 this.handleBuzzError(data);
+                break;
+
+            case 'new_round':
+                this.handleNewRound(data);
+                break;
+
+            case 'points_awarded':
+                this.handlePointsAwarded(data);
                 break;
                 
             case 'answer_result':
@@ -467,12 +484,15 @@ class GameClient {
             this.setupClickerGame(data);
         } else if (data.game_type === 'trivia') {
             this.setupTriviaGame(data);
+        } else if (data.game_type === 'buzzer') {
+            this.setupBuzzerGame(data);
         }
     }
     
     setupClickerGame(data) {
         document.getElementById('clicker-game').style.display = 'block';
         document.getElementById('trivia-game').style.display = 'none';
+        document.getElementById('buzzer-game').style.display = 'none';
         
         const clickBtn = document.getElementById('click-btn');
         clickBtn.disabled = false;
@@ -484,11 +504,38 @@ class GameClient {
     setupTriviaGame(data) {
         document.getElementById('trivia-game').style.display = 'block';
         document.getElementById('clicker-game').style.display = 'none';
+        document.getElementById('buzzer-game').style.display = 'none';
         
         document.getElementById('buzz-btn').disabled = false;
         document.getElementById('question-text').textContent = 'Waiting for first question...';
         
         this.updateTriviaScores({});
+    }
+
+    setupBuzzerGame(data) {
+        // Hide other game UIs
+        document.getElementById('clicker-game').style.display = 'none';
+        document.getElementById('trivia-game').style.display = 'none';
+        document.getElementById('buzzer-game').style.display = 'block';
+        
+        // Setup buzzer controls
+        const mainBuzzBtn = document.getElementById('main-buzz-btn');
+        if (mainBuzzBtn) {
+            mainBuzzBtn.disabled = false;
+            mainBuzzBtn.textContent = '🔔 BUZZ IN!';
+        }
+        
+        // Show host controls if player is host
+        const hostControls = document.getElementById('buzzer-host-controls');
+        if (hostControls) {
+            hostControls.style.display = this.playerData.is_host ? 'block' : 'none';
+        }
+        
+        // Initialize scores
+        this.updateBuzzerScores({});
+        
+        // Clear any existing buzzer table
+        this.clearBuzzerGameTable();
     }
     
     updateTimer(data) {
@@ -590,6 +637,19 @@ class GameClient {
     handleBuzz() {
         if (this.gameState?.active) {
             this.sendWebSocketMessage('player_action', {action: 'buzz'});
+        }
+    }
+
+    handleMainBuzz() {
+        if (this.gameState?.active && this.gameState?.type === 'buzzer') {
+            this.sendWebSocketMessage('player_action', {action: 'buzz'});
+            
+            // Disable button after buzz
+            const mainBuzzBtn = document.getElementById('main-buzz-btn');
+            if (mainBuzzBtn) {
+                mainBuzzBtn.disabled = true;
+                mainBuzzBtn.textContent = '🔔 Buzzed!';
+            }
         }
     }
     
@@ -777,6 +837,164 @@ class GameClient {
             buzzBtn.textContent = '🔔 Select Answer First!';
         }
     }
+
+    // Buzzer Board Game Handlers
+    handleNewRound(data) {
+        console.log('New round started:', data);
+        
+        // Update round display
+        const roundText = document.getElementById('buzzer-round-text');
+        if (roundText) {
+            roundText.textContent = `Round ${data.round_number} - Ready to Buzz!`;
+        }
+        
+        // Enable buzz button
+        const mainBuzzBtn = document.getElementById('main-buzz-btn');
+        if (mainBuzzBtn) {
+            mainBuzzBtn.disabled = false;
+            mainBuzzBtn.textContent = '🔔 BUZZ IN!';
+        }
+        
+        // Clear buzzer table
+        this.clearBuzzerGameTable();
+        
+        // Update scores
+        this.updateBuzzerScores(data.scores);
+        
+        this.showMessage(`Round ${data.round_number} started!`, 'success');
+    }
+
+    handlePointsAwarded(data) {
+        console.log('Points awarded:', data);
+        
+        // Update scores display
+        this.updateBuzzerScores(data.scores);
+        
+        // Show success message
+        this.showMessage(`${data.player_name} awarded ${data.points_awarded} points! Total: ${data.new_total}`, 'success');
+    }
+
+    updateBuzzerScores(scores) {
+        const scoresDiv = document.getElementById('buzzer-scores');
+        if (!scoresDiv) return;
+        
+        scoresDiv.innerHTML = '';
+        
+        // Sort scores by value (highest first)
+        const sortedScores = Object.entries(scores || {})
+            .sort(([,a], [,b]) => b - a);
+        
+        sortedScores.forEach(([playerId, score], index) => {
+            const player = this.lobbyData.players.find(p => p.player_id === playerId);
+            const scoreItem = document.createElement('div');
+            scoreItem.className = `score-item ${index === 0 ? 'leader' : ''}`;
+            scoreItem.innerHTML = `
+                <span>${player?.name || playerId}</span>
+                <span>${score} pts</span>
+            `;
+            scoresDiv.appendChild(scoreItem);
+        });
+    }
+
+    updateBuzzerGameTable(buzzTable) {
+        if (!buzzTable || buzzTable.length === 0) {
+            this.clearBuzzerGameTable();
+            return;
+        }
+
+        const container = document.getElementById('buzzer-game-table-container');
+        const tableBody = document.getElementById('buzzer-game-table-body');
+        
+        if (container && tableBody) {
+            // Show the table
+            container.style.display = 'block';
+            
+            // Clear existing rows
+            tableBody.innerHTML = '';
+            
+            // Add rows for each buzz
+            buzzTable.forEach((buzz, index) => {
+                const row = document.createElement('tr');
+                
+                const positionCell = document.createElement('td');
+                positionCell.textContent = buzz.position;
+                positionCell.className = 'buzz-position';
+                
+                const nameCell = document.createElement('td');
+                nameCell.textContent = buzz.player_name;
+                
+                const timeCell = document.createElement('td');
+                timeCell.textContent = `${Math.round(buzz.time_since_round)}ms`;
+                timeCell.className = 'buzz-time';
+                
+                const diffCell = document.createElement('td');
+                if (buzz.time_diff === null || buzz.time_diff === undefined) {
+                    diffCell.textContent = 'First!';
+                    diffCell.className = 'buzz-diff first';
+                } else {
+                    diffCell.textContent = `+${Math.round(buzz.time_diff)}ms`;
+                    diffCell.className = 'buzz-diff';
+                }
+                
+                // Host action column
+                const actionCell = document.createElement('td');
+                actionCell.className = 'host-only';
+                if (this.playerData.is_host) {
+                    actionCell.innerHTML = `
+                        <button class="award-points-btn" onclick="gameClient.awardPoints('${buzz.player_id}', 5)">+5</button>
+                        <button class="award-points-btn" onclick="gameClient.awardPoints('${buzz.player_id}', 10)">+10</button>
+                        <button class="award-points-btn" onclick="gameClient.awardPoints('${buzz.player_id}', 15)">+15</button>
+                    `;
+                } else {
+                    actionCell.textContent = '-';
+                }
+                
+                row.appendChild(positionCell);
+                row.appendChild(nameCell);
+                row.appendChild(timeCell);
+                row.appendChild(diffCell);
+                row.appendChild(actionCell);
+                
+                tableBody.appendChild(row);
+            });
+        }
+    }
+
+    clearBuzzerGameTable() {
+        const container = document.getElementById('buzzer-game-table-container');
+        const tableBody = document.getElementById('buzzer-game-table-body');
+        
+        if (container) {
+            container.style.display = 'none';
+        }
+        
+        if (tableBody) {
+            tableBody.innerHTML = '';
+        }
+    }
+
+    awardPoints(playerId, points) {
+        console.log(`Awarding ${points} points to ${playerId}`);
+        this.sendWebSocketMessage('game_action', {
+            action: 'award_points',
+            player_id: playerId,
+            points: points
+        });
+    }
+
+    newRound() {
+        console.log('Starting new round');
+        this.sendWebSocketMessage('game_action', {
+            action: 'new_round'
+        });
+    }
+
+    endBuzzerGame() {
+        console.log('Ending buzzer game');
+        this.sendWebSocketMessage('game_action', {
+            action: 'end_game'
+        });
+    }
     
     showAnswerOptions() {
         const optionsDiv = document.getElementById('answer-options');
@@ -917,7 +1135,12 @@ class GameClient {
     }
     
     getGameDisplayName() {
-        return this.selectedGame === 'clicker' ? 'Clicker Challenge' : 'Trivia Challenge';
+        switch(this.selectedGame) {
+            case 'clicker': return 'Clicker Challenge';
+            case 'trivia': return 'Trivia Challenge';
+            case 'buzzer': return 'Buzzer Board';
+            default: return 'Game';
+        }
     }
     
     resetState() {
