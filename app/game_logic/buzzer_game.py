@@ -47,22 +47,80 @@ class BuzzerGame:
         self.state.already_buzzed.clear()
         self.state.buzz_times.clear()
         self.state.round_start_time = time.time()
+        self.state.buzzer_status = "disabled"  # Buzzers start disabled
+        self.state.buzzer_live_time = None
+        self.state.countdown_start_time = None
         
         # Broadcast new round
         await storage.publish(self.room_code, "new_round", {
             "round_number": self.state.round_number,
-            "message": f"Round {self.state.round_number} - Ready to buzz!",
+            "message": f"Round {self.state.round_number} - Host will activate buzzers",
+            "buzzer_status": "disabled",
             "scores": self.state.scores
         })
         
         # Clear buzzer table on frontend
         await storage.publish(self.room_code, "buzzer_cleared", {
-            "message": f"Round {self.state.round_number} buzzers ready!"
+            "message": f"Round {self.state.round_number} - Waiting for host to activate buzzers"
         })
     
+    async def buzzer_live(self) -> None:
+        """Start the 3-second countdown and activate buzzers (host only)"""
+        if not self.state.is_active or self.state.buzzer_status != "disabled":
+            return
+        
+        # Start countdown
+        self.state.buzzer_status = "countdown"
+        self.state.countdown_start_time = time.time()
+        
+        # Notify host of countdown start (players don't see this)
+        await storage.publish(self.room_code, "buzzer_countdown_start", {
+            "countdown_duration": 3,
+            "message": "Buzzer countdown started..."
+        })
+        
+        # Start countdown task
+        asyncio.create_task(self._run_buzzer_countdown())
+    
+    async def _run_buzzer_countdown(self) -> None:
+        """Run the 3-second countdown then activate buzzers"""
+        try:
+            # 3-second countdown with host updates
+            for i in range(3, 0, -1):
+                await storage.publish(self.room_code, "buzzer_countdown_tick", {
+                    "countdown": i,
+                    "message": f"Buzzers live in {i}..."
+                })
+                await asyncio.sleep(1)
+            
+            # Activate buzzers
+            self.state.buzzer_status = "live"
+            self.state.buzzer_live_time = time.time()
+            
+            # Notify everyone buzzers are live
+            await storage.publish(self.room_code, "buzzers_live", {
+                "message": "Buzzers are LIVE!",
+                "buzzer_status": "live"
+            })
+            
+        except asyncio.CancelledError:
+            # Countdown was cancelled
+            pass
+
     async def handle_buzz(self, player_id: str) -> bool:
-        """Handle player buzz attempt"""
+        """Handle player buzz attempt with anti-cheat validation"""
         if not self.state.is_active:
+            return False
+        
+        # ANTI-CHEAT: Only allow buzzes when buzzers are live
+        if self.state.buzzer_status != "live":
+            # Log potential cheating attempt
+            print(f"Anti-cheat: Player {player_id} tried to buzz when buzzers not live (status: {self.state.buzzer_status})")
+            await storage.publish(self.room_code, "buzz_blocked", {
+                "player_id": player_id,
+                "message": "Buzzers are not live yet!",
+                "reason": "early_buzz"
+            })
             return False
         
         # Check if player already buzzed this round
@@ -81,7 +139,7 @@ class BuzzerGame:
         
         # Track buzz time and calculate difference
         buzz_time = time.time()
-        time_since_round = buzz_time - (self.state.round_start_time or buzz_time)
+        time_since_live = buzz_time - (self.state.buzzer_live_time or buzz_time)  # Time since buzzers went live
         
         # Calculate difference from first buzz
         time_diff = None
@@ -94,7 +152,7 @@ class BuzzerGame:
             "player_id": player_id,
             "player_name": player_name,
             "buzz_time": buzz_time,
-            "time_since_round": time_since_round * 1000,  # Convert to ms
+            "time_since_live": time_since_live * 1000,  # Convert to ms (time since buzzers went live)
             "time_diff": time_diff,
             "position": len(self.state.buzz_times) + 1
         }
@@ -107,10 +165,10 @@ class BuzzerGame:
             "position": buzz_info["position"],
             "total_buzzed": len(self.state.already_buzzed),
             "buzz_time": buzz_time,
-            "time_since_round": time_since_round * 1000,
+            "time_since_live": time_since_live * 1000,  # Time since buzzers went live
             "time_diff": time_diff,
             "buzz_table": self.state.buzz_times,  # Send full table for UI
-            "message": f"{player_name} buzzed in #{buzz_info['position']}!"
+            "message": f"{player_name} buzzed in #{buzz_info['position']} ({int(time_since_live * 1000)}ms)!"
         })
         
         return True

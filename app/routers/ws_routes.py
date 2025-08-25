@@ -207,6 +207,12 @@ async def handle_game_action(room_code: str, player_id: str, data: Dict):
             points = data.get("points", 10)  # Default 10 points
             if player_id:
                 await game.award_points(player_id, points)
+    
+    elif action == "buzzer_live" and lobby["game_type"] == "buzzer":
+        # Handle buzzer live activation (host only)
+        if room_code in active_buzzer_games:
+            game = active_buzzer_games[room_code]
+            await game.buzzer_live()
 
 async def handle_player_action(room_code: str, player_id: str, data: Dict):
     """Handle in-game player actions"""

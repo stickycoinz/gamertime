@@ -166,8 +166,15 @@
                         
                         <!-- Host Controls (only visible to host) -->
                         <div id="buzzer-host-controls" class="host-controls" style="display: none;">
+                            <button id="buzzer-live-btn" class="control-btn buzzer-live">🚨 BUZZER LIVE</button>
                             <button id="new-round-btn" class="control-btn">🔄 New Round</button>
                             <button id="end-buzzer-game-btn" class="control-btn danger">🏁 End Game</button>
+                        </div>
+                        
+                        <!-- Host Countdown Display (only visible to host during countdown) -->
+                        <div id="buzzer-countdown" class="buzzer-countdown" style="display: none;">
+                            <h2 id="countdown-display">3</h2>
+                            <p>Buzzers activating...</p>
                         </div>
                     </div>
                     
