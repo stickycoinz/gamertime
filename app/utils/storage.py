@@ -85,7 +85,9 @@ class InMemoryStorage(Storage):
     async def publish(self, room_code: str, event: str, data: Dict) -> None:
         """Broadcast event to all connections in room"""
         if room_code in self.connections:
-            message = {"type": event, "data": data}
+            # Clean data to ensure JSON serializable
+            clean_data = self._clean_for_json(data)
+            message = {"type": event, "data": clean_data}
             
             # Send to all connections with better error handling
             disconnected = []
@@ -103,6 +105,20 @@ class InMemoryStorage(Storage):
             # Clean up empty connection sets
             if not self.connections[room_code]:
                 del self.connections[room_code]
+    
+    def _clean_for_json(self, data):
+        """Clean data to ensure JSON serializable"""
+        import datetime
+        if isinstance(data, dict):
+            return {k: self._clean_for_json(v) for k, v in data.items()}
+        elif isinstance(data, list):
+            return [self._clean_for_json(item) for item in data]
+        elif isinstance(data, datetime.datetime):
+            return data.isoformat()
+        elif isinstance(data, set):
+            return list(data)
+        else:
+            return data
     
     def add_connection(self, room_code: str, websocket) -> None:
         """Add WebSocket connection to room"""

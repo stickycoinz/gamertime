@@ -152,7 +152,7 @@ async def handle_chat_message(room_code: str, player_id: str, message: str):
         "player_id": player_id,
         "player_name": player["name"],
         "message": message[:200],  # Limit message length
-        "timestamp": str(time.time())
+        "timestamp": time.time()
     })
 
 async def handle_game_action(room_code: str, player_id: str, data: Dict):
