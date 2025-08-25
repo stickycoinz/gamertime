@@ -361,6 +361,10 @@ class GameClient {
             case 'game_stopped':
                 this.handleGameStopped(data);
                 break;
+
+            case 'player_kicked':
+                this.handlePlayerKicked(data);
+                break;
                 
             case 'answer_result':
                 this.handleAnswerResult(data);
@@ -425,18 +429,32 @@ class GameClient {
             const playerCard = document.createElement('div');
             playerCard.className = `player-card ${player.is_host ? 'host' : ''} ${player.is_ready ? 'ready' : ''} ${player.connected ? 'connected' : 'disconnected'}`;
             
-            playerCard.innerHTML = `
-                <div class="player-info">
-                    <span class="player-name">${player.name}</span>
-                </div>
-                <div class="player-status">
-                    ${player.is_host ? '<span class="status-badge host">Host</span>' : ''}
-                    <span class="status-badge ${player.is_ready ? 'ready' : 'not-ready'}">
-                        ${player.is_ready ? 'Ready' : 'Not Ready'}
-                    </span>
-                </div>
+            // Create player info section
+            const playerInfo = document.createElement('div');
+            playerInfo.className = 'player-info';
+            playerInfo.innerHTML = `<span class="player-name">${player.name}</span>`;
+            
+            // Create player status section
+            const playerStatus = document.createElement('div');
+            playerStatus.className = 'player-status';
+            playerStatus.innerHTML = `
+                ${player.is_host ? '<span class="status-badge host">Host</span>' : ''}
+                <span class="status-badge ${player.is_ready ? 'ready' : 'not-ready'}">
+                    ${player.is_ready ? 'Ready' : 'Not Ready'}
+                </span>
             `;
             
+            // Add kick button for host (if current user is host and target is not host)
+            if (this.playerData.is_host && !player.is_host) {
+                const kickBtn = document.createElement('button');
+                kickBtn.className = 'kick-btn';
+                kickBtn.textContent = '❌ Kick';
+                kickBtn.addEventListener('click', () => this.kickPlayer(player.player_id, player.name));
+                playerStatus.appendChild(kickBtn);
+            }
+            
+            playerCard.appendChild(playerInfo);
+            playerCard.appendChild(playerStatus);
             list.appendChild(playerCard);
         });
     }
@@ -1234,6 +1252,38 @@ class GameClient {
             `;
             scoresDiv.appendChild(card);
         });
+    }
+
+    // Player Management
+    kickPlayer(playerId, playerName) {
+        if (!this.playerData.is_host) {
+            return;
+        }
+        
+        // Confirm before kicking
+        if (confirm(`Are you sure you want to kick ${playerName}?`)) {
+            console.log(`Kicking player: ${playerName} (${playerId})`);
+            this.sendWebSocketMessage('game_action', {
+                action: 'kick_player',
+                player_id: playerId
+            });
+        }
+    }
+
+    handlePlayerKicked(data) {
+        console.log('Player kicked:', data);
+        
+        // If the kicked player is the current user, return to home
+        if (data.kicked_player_id === this.playerData.player_id) {
+            this.showMessage('You have been removed from the lobby', 'error');
+            setTimeout(() => {
+                this.resetState();
+                this.showScreen('home-screen');
+            }, 2000);
+        } else {
+            // Show message to other players
+            this.showMessage(data.message, 'warning');
+        }
     }
     
     // Results Actions

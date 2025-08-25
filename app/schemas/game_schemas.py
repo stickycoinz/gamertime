@@ -88,7 +88,7 @@ class PlayerAction(BaseModel):
     data: Optional[Dict] = {}
 
 class GameAction(BaseModel):
-    action: Literal["start_game", "next_question", "end_game", "new_round", "award_points", "buzzer_live"]
+    action: Literal["start_game", "next_question", "end_game", "new_round", "award_points", "buzzer_live", "kick_player"]
     data: Optional[Dict] = {}
 
 # Score Display

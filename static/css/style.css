@@ -905,3 +905,27 @@ button.primary {
         box-shadow: 0 15px 40px rgba(231, 76, 60, 0.6);
     }
 }
+
+/* Kick Button */
+.kick-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.8em;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: all 0.3s ease;
+}
+
+.kick-btn:hover {
+    background: #c0392b;
+    transform: translateY(-1px);
+}
+
+.player-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}

@@ -213,6 +213,12 @@ async def handle_game_action(room_code: str, player_id: str, data: Dict):
         if room_code in active_buzzer_games:
             game = active_buzzer_games[room_code]
             await game.buzzer_live()
+    
+    elif action == "kick_player":
+        # Handle player kick (host only)
+        target_player_id = data.get("player_id")
+        if target_player_id:
+            await kick_player(room_code, player_id, target_player_id)
 
 async def handle_player_action(room_code: str, player_id: str, data: Dict):
     """Handle in-game player actions"""
@@ -306,5 +312,43 @@ async def end_game(room_code: str):
     if lobby:
         lobby["status"] = "waiting"
         await storage.save_lobby(room_code, lobby)
+
+async def kick_player(room_code: str, host_player_id: str, target_player_id: str):
+    """Kick a player from the lobby (host only)"""
+    lobby = await storage.get_lobby(room_code)
+    if not lobby:
+        return
+    
+    # Verify that the requester is the host
+    host_player = next((p for p in lobby["players"] if p["player_id"] == host_player_id), None)
+    if not host_player or not host_player["is_host"]:
+        return
+    
+    # Find the target player
+    target_player = next((p for p in lobby["players"] if p["player_id"] == target_player_id), None)
+    if not target_player:
+        return
+    
+    # Can't kick the host
+    if target_player["is_host"]:
+        return
+    
+    # Remove the player from the lobby
+    await storage.remove_player(room_code, target_player_id)
+    
+    # Notify all players about the kick
+    await storage.publish(room_code, "player_kicked", {
+        "kicked_player_id": target_player_id,
+        "kicked_player_name": target_player["name"],
+        "message": f"{target_player['name']} was removed from the lobby"
+    })
+    
+    # Update lobby status for remaining players
+    updated_lobby = await storage.get_lobby(room_code)
+    if updated_lobby:
+        await storage.publish(room_code, "lobby_updated", {
+            "players": updated_lobby["players"],
+            "all_ready": all(p["is_ready"] for p in updated_lobby["players"])
+        })
 
 # Removed broadcast_to_room - now using storage.publish()
