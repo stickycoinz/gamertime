@@ -50,6 +50,7 @@ class GameClient {
         
         // Buzzer Game screen
         document.getElementById('main-buzz-btn').addEventListener('click', () => this.handleMainBuzz());
+        document.getElementById('buzzer-live-btn').addEventListener('click', () => this.buzzerLive());
         document.getElementById('new-round-btn').addEventListener('click', () => this.newRound());
         document.getElementById('end-buzzer-game-btn').addEventListener('click', () => this.endBuzzerGame());
         
@@ -339,6 +340,22 @@ class GameClient {
 
             case 'points_awarded':
                 this.handlePointsAwarded(data);
+                break;
+
+            case 'buzzer_countdown_start':
+                this.handleBuzzerCountdownStart(data);
+                break;
+
+            case 'buzzer_countdown_tick':
+                this.handleBuzzerCountdownTick(data);
+                break;
+
+            case 'buzzers_live':
+                this.handleBuzzersLive(data);
+                break;
+
+            case 'buzz_blocked':
+                this.handleBuzzBlocked(data);
                 break;
                 
             case 'answer_result':
@@ -845,14 +862,38 @@ class GameClient {
         // Update round display
         const roundText = document.getElementById('buzzer-round-text');
         if (roundText) {
-            roundText.textContent = `Round ${data.round_number} - Ready to Buzz!`;
+            roundText.textContent = `Round ${data.round_number} - Host will activate buzzers`;
         }
         
-        // Enable buzz button
+        // Reset buzz button (disabled until host activates)
         const mainBuzzBtn = document.getElementById('main-buzz-btn');
         if (mainBuzzBtn) {
-            mainBuzzBtn.disabled = false;
-            mainBuzzBtn.textContent = '🔔 BUZZ IN!';
+            mainBuzzBtn.disabled = true;
+            mainBuzzBtn.textContent = '🔔 Waiting for host...';
+            mainBuzzBtn.style.background = '#95a5a6';
+        }
+        
+        // Reset buzzer instruction
+        const instruction = document.getElementById('buzzer-instruction');
+        if (instruction) {
+            instruction.textContent = 'Host will read a question and activate buzzers when ready!';
+            instruction.style.color = '#7f8c8d';
+            instruction.style.fontWeight = 'normal';
+        }
+        
+        // Reset buzzer live button for host
+        if (this.playerData.is_host) {
+            const buzzerLiveBtn = document.getElementById('buzzer-live-btn');
+            if (buzzerLiveBtn) {
+                buzzerLiveBtn.disabled = false;
+                buzzerLiveBtn.textContent = '🚨 BUZZER LIVE';
+            }
+            
+            // Hide countdown
+            const countdownDiv = document.getElementById('buzzer-countdown');
+            if (countdownDiv) {
+                countdownDiv.style.display = 'none';
+            }
         }
         
         // Clear buzzer table
@@ -861,7 +902,7 @@ class GameClient {
         // Update scores
         this.updateBuzzerScores(data.scores);
         
-        this.showMessage(`Round ${data.round_number} started!`, 'success');
+        this.showMessage(`Round ${data.round_number} ready - Host can activate buzzers`, 'success');
     }
 
     handlePointsAwarded(data) {
@@ -924,7 +965,7 @@ class GameClient {
                 nameCell.textContent = buzz.player_name;
                 
                 const timeCell = document.createElement('td');
-                timeCell.textContent = `${Math.round(buzz.time_since_round)}ms`;
+                timeCell.textContent = `${Math.round(buzz.time_since_live || buzz.time_since_round)}ms`;
                 timeCell.className = 'buzz-time';
                 
                 const diffCell = document.createElement('td');
@@ -989,11 +1030,90 @@ class GameClient {
         });
     }
 
+    buzzerLive() {
+        console.log('Activating buzzer live countdown');
+        this.sendWebSocketMessage('game_action', {
+            action: 'buzzer_live'
+        });
+        
+        // Disable the buzzer live button
+        const buzzerLiveBtn = document.getElementById('buzzer-live-btn');
+        if (buzzerLiveBtn) {
+            buzzerLiveBtn.disabled = true;
+            buzzerLiveBtn.textContent = 'Countdown Started...';
+        }
+    }
+
     endBuzzerGame() {
         console.log('Ending buzzer game');
         this.sendWebSocketMessage('game_action', {
             action: 'end_game'
         });
+    }
+
+    // Anti-Cheat Buzzer Handlers
+    handleBuzzerCountdownStart(data) {
+        console.log('Buzzer countdown started:', data);
+        
+        // Only show countdown to host
+        if (this.playerData.is_host) {
+            const countdownDiv = document.getElementById('buzzer-countdown');
+            if (countdownDiv) {
+                countdownDiv.style.display = 'block';
+                document.getElementById('countdown-display').textContent = '3';
+            }
+        }
+    }
+
+    handleBuzzerCountdownTick(data) {
+        console.log('Countdown tick:', data);
+        
+        // Only show countdown to host
+        if (this.playerData.is_host) {
+            const countdownDisplay = document.getElementById('countdown-display');
+            if (countdownDisplay) {
+                countdownDisplay.textContent = data.countdown;
+            }
+        }
+    }
+
+    handleBuzzersLive(data) {
+        console.log('Buzzers are now live:', data);
+        
+        // Hide countdown (host only)
+        if (this.playerData.is_host) {
+            const countdownDiv = document.getElementById('buzzer-countdown');
+            if (countdownDiv) {
+                countdownDiv.style.display = 'none';
+            }
+        }
+        
+        // Enable buzz button for all players
+        const mainBuzzBtn = document.getElementById('main-buzz-btn');
+        if (mainBuzzBtn) {
+            mainBuzzBtn.disabled = false;
+            mainBuzzBtn.textContent = '🔔 BUZZ IN!';
+            mainBuzzBtn.style.background = 'linear-gradient(45deg, #e74c3c, #c0392b)';
+        }
+        
+        // Update buzzer instruction
+        const instruction = document.getElementById('buzzer-instruction');
+        if (instruction) {
+            instruction.textContent = 'Buzzers are LIVE! First to buzz wins!';
+            instruction.style.color = '#e74c3c';
+            instruction.style.fontWeight = 'bold';
+        }
+        
+        this.showMessage(data.message, 'success');
+    }
+
+    handleBuzzBlocked(data) {
+        console.log('Buzz blocked:', data);
+        
+        // Only show error to the player who tried to cheat
+        if (data.player_id === this.playerData.player_id) {
+            this.showMessage(data.message, 'error');
+        }
     }
     
     showAnswerOptions() {
