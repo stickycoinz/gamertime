@@ -56,16 +56,20 @@ class GameClient {
     
     // Game Selection
     selectGame(card) {
+        console.log('Selecting game:', card.dataset.game);
         document.querySelectorAll('.game-card').forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
         this.selectedGame = card.dataset.game;
+        console.log('Selected game set to:', this.selectedGame);
         this.validateHostForm();
     }
     
     validateHostForm() {
         const name = document.getElementById('host-name').value.trim();
         const btn = document.getElementById('create-lobby-btn');
-        btn.disabled = !name || !this.selectedGame;
+        const isValid = !!(name && this.selectedGame);
+        console.log('Validating host form:', { name, selectedGame: this.selectedGame, isValid });
+        btn.disabled = !isValid;
     }
     
     validateJoinForm() {
@@ -236,7 +240,7 @@ class GameClient {
     }
     
     // WebSocket Message Handling
-    handleWebSocketMessage(message) {
+    async handleWebSocketMessage(message) {
         const {type, data} = message;
         
         switch (type) {
