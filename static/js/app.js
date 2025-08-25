@@ -122,6 +122,9 @@ class GameClient {
             this.playerData = lobby.players.find(p => p.is_host);
             
             this.showMessage(`🎉 Lobby created! Room code: ${lobby.room_code}`, 'success');
+            
+            // Force scroll to top and show lobby screen
+            window.scrollTo(0, 0);
             this.showScreen('lobby-screen');
             this.updateLobbyUI();
             this.connectWebSocket();
@@ -164,6 +167,9 @@ class GameClient {
             this.selectedGame = lobby.game_type;
             
             this.showMessage(`🎉 Joined ${lobby.room_code}!`, 'success');
+            
+            // Force scroll to top and show lobby screen  
+            window.scrollTo(0, 0);
             this.showScreen('lobby-screen');
             this.updateLobbyUI();
             this.connectWebSocket();
@@ -244,11 +250,16 @@ class GameClient {
         const {type, data} = message;
         
         switch (type) {
-            case 'pong':
-                // Heartbeat response
-                break;
-                
-                    case 'lobby_updated':
+                    case 'pong':
+            // Heartbeat response
+            break;
+            
+        case 'player_connected':
+            console.log(`${data.player_name} connected`);
+            await this.refreshLobbyData();
+            break;
+            
+        case 'lobby_updated':
             this.updateLobbyFromWS(data);
             break;
             
@@ -686,11 +697,21 @@ class GameClient {
     
     // Utility Methods
     showScreen(screenId) {
+        console.log(`Switching to screen: ${screenId}`);
+        
+        // Hide all screens
         document.querySelectorAll('.screen').forEach(screen => {
             screen.classList.remove('active');
+            screen.style.display = 'none';
         });
-        document.getElementById(screenId).classList.add('active');
+        
+        // Show target screen
+        const targetScreen = document.getElementById(screenId);
+        targetScreen.style.display = 'block';
+        targetScreen.classList.add('active');
+        
         this.currentScreen = screenId;
+        console.log(`Screen switched to: ${screenId}`);
     }
     
     showMessage(message, type = 'info') {
