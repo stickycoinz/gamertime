@@ -10,6 +10,7 @@ from app.schemas.game_schemas import PlayerAction, GameAction, Player
 from app.utils.storage import storage
 from app.game_logic.clicker_game import ClickerGame, active_games
 from app.game_logic.trivia_game import TriviaGame, active_trivia_games
+from app.game_logic.buzzer_game import BuzzerGame, active_buzzer_games
 
 router = APIRouter()
 
@@ -191,6 +192,21 @@ async def handle_game_action(room_code: str, player_id: str, data: Dict):
         if room_code in active_trivia_games:
             game = active_trivia_games[room_code]
             await game._next_question()
+    
+    elif action == "new_round" and lobby["game_type"] == "buzzer":
+        # Handle new round for buzzer games
+        if room_code in active_buzzer_games:
+            game = active_buzzer_games[room_code]
+            await game.new_round()
+    
+    elif action == "award_points" and lobby["game_type"] == "buzzer":
+        # Handle manual point awarding for buzzer games
+        if room_code in active_buzzer_games:
+            game = active_buzzer_games[room_code]
+            player_id = data.get("player_id")
+            points = data.get("points", 10)  # Default 10 points
+            if player_id:
+                await game.award_points(player_id, points)
 
 async def handle_player_action(room_code: str, player_id: str, data: Dict):
     """Handle in-game player actions"""
@@ -206,6 +222,10 @@ async def handle_player_action(room_code: str, player_id: str, data: Dict):
         # Handle trivia game buzzer
         if room_code in active_trivia_games:
             game = active_trivia_games[room_code]
+            await game.handle_buzz(player_id)
+        # Handle buzzer board game
+        elif room_code in active_buzzer_games:
+            game = active_buzzer_games[room_code]
             await game.handle_buzz(player_id)
     
     elif action == "select_answer":
@@ -249,6 +269,11 @@ async def start_game(room_code: str, lobby: Dict):
         game = TriviaGame(room_code)
         active_trivia_games[room_code] = game
         await game.start_game(players)
+    
+    elif lobby["game_type"] == "buzzer":
+        game = BuzzerGame(room_code)
+        active_buzzer_games[room_code] = game
+        await game.start_game(players)
 
 async def end_game(room_code: str):
     """Force end the current game"""
@@ -263,6 +288,12 @@ async def end_game(room_code: str):
         game = active_trivia_games[room_code]
         await game.stop_game()
         del active_trivia_games[room_code]
+    
+    # Stop buzzer game
+    if room_code in active_buzzer_games:
+        game = active_buzzer_games[room_code]
+        await game.stop_game()
+        del active_buzzer_games[room_code]
     
     # Update lobby status
     lobby = await storage.get_lobby(room_code)

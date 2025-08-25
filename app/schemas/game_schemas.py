@@ -64,7 +64,16 @@ class TriviaGameState(BaseModel):
     buzz_times: List[Dict] = []  # Track buzz timestamps with player info
     question_start_time: Optional[float] = None  # Track when question started
 
-GameState = Union[ClickerGameState, TriviaGameState]
+class BuzzerGameState(BaseModel):
+    game_type: Literal["buzzer"] = "buzzer"
+    round_number: int = 0
+    is_active: bool = False
+    buzz_times: List[Dict] = []  # Track buzz timestamps with player info
+    round_start_time: Optional[float] = None  # Track when round started
+    already_buzzed: set[str] = set()  # Players who buzzed this round
+    scores: Dict[str, int] = {}  # player_id -> total_score (manual scoring)
+
+GameState = Union[ClickerGameState, TriviaGameState, BuzzerGameState]
 
 # WebSocket Message Models
 class WSMessage(BaseModel):
@@ -76,7 +85,7 @@ class PlayerAction(BaseModel):
     data: Optional[Dict] = {}
 
 class GameAction(BaseModel):
-    action: Literal["start_game", "next_question", "end_game"]
+    action: Literal["start_game", "next_question", "end_game", "new_round", "award_points"]
     data: Optional[Dict] = {}
 
 # Score Display

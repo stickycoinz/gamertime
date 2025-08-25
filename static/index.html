@@ -25,6 +25,10 @@
                             <h3>🧠 Trivia Challenge</h3>
                             <p>Answer questions fast.<br>First to buzz in wins!</p>
                         </div>
+                        <div class="game-card" data-game="buzzer">
+                            <h3>🔔 Buzzer Board</h3>
+                            <p>Simple buzzer system.<br>Perfect for live trivia!</p>
+                        </div>
                     </div>
                 </div>
                 
@@ -145,6 +149,49 @@
                     <div class="trivia-scores">
                         <h3>Scores</h3>
                         <div id="trivia-scores"></div>
+                    </div>
+                </div>
+
+                <!-- Buzzer Board Game UI -->
+                <div id="buzzer-game" class="game-content" style="display: none;">
+                    <div class="buzzer-area">
+                        <div class="buzzer-info">
+                            <h3 id="buzzer-round-text">Round 1 - Ready to Buzz!</h3>
+                            <p id="buzzer-instruction">Host will read a question. Buzz in when you know the answer!</p>
+                        </div>
+                        
+                        <div class="buzzer-controls">
+                            <button id="main-buzz-btn" class="main-buzz-button" disabled>🔔 BUZZ IN!</button>
+                        </div>
+                        
+                        <!-- Host Controls (only visible to host) -->
+                        <div id="buzzer-host-controls" class="host-controls" style="display: none;">
+                            <button id="new-round-btn" class="control-btn">🔄 New Round</button>
+                            <button id="end-buzzer-game-btn" class="control-btn danger">🏁 End Game</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Enhanced Buzzer Table for Buzzer Game -->
+                    <div id="buzzer-game-table-container" class="buzzer-table-container" style="display: none;">
+                        <h3>🔔 Buzz Order</h3>
+                        <table id="buzzer-game-table" class="buzzer-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Player</th>
+                                    <th>Time</th>
+                                    <th>Difference</th>
+                                    <th class="host-only">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="buzzer-game-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="buzzer-scores">
+                        <h3>Scores</h3>
+                        <div id="buzzer-scores"></div>
                     </div>
                 </div>
             </div>
