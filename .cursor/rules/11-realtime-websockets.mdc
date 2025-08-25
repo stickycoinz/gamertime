@@ -1,0 +1,38 @@
+---
+title: Real-time WS Rules
+type: auto
+globs:
+  - "app/routers/ws_routes.py"
+  - "app/game_logic.py"
+description: Enforce per-round reset, first-in lockout, and scoped broadcasts.
+---
+
+# WebSocket/Buzzer Rules
+
+## Event names
+- Client→Server: player_ready, player_unready, chat, game_action, ping, buzz, new_question
+- Server→Client: lobby_updated, player_joined, player_left, game_started, game_state, game_finished, tick, buzz_lockout, buzzer_cleared
+
+## Buzzer contract
+- Each question initializes: `round_locked = False`, `already_buzzed = set()`.
+- On `buzz(player_id)`:
+  - If `round_locked`, ignore.
+  - Else set `round_locked = True`, record `winner = player_id`, add to `already_buzzed`, `broadcast("buzz_lockout", {winner})`.
+- On `new_question`:
+  - Clear `round_locked` and `already_buzzed`.
+  - `broadcast("buzzer_cleared")` so clients re-enable buttons.
+- Host is just another player connection; **never** permanently lock out host/anyone across rounds.
+
+## Concurrency
+- Any lobby mutation (join/leave/ready/buzz) uses an `asyncio.Lock` per lobby key.
+- No blocking calls. Use `asyncio.create_task` for timers; store handles so you can cancel on lobby close.
+
+## Room Isolation
+- Every lobby maps to a WS connection group
+- Broadcasts are scoped to specific rooms only
+- Use stable connection IDs for tracking
+
+## Latency Safety
+- No sleep in handlers
+- Use ticks/timers in background asyncio.Task
+- Handle connection drops gracefully

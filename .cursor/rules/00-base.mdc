@@ -1,0 +1,22 @@
+---
+title: Base Project Rules
+type: always
+---
+
+# Party Game Platform – Ground Rules
+
+## What this project is
+- Browser-based party games with real-time multiplayer.
+- Stack: Python 3.11, FastAPI, Pydantic v2, asyncio WebSockets, vanilla HTML/CSS/JS.
+- Now: in-memory state with `asyncio.Lock`. Later: Redis pub/sub + storage backend.
+
+## Non-negotiables
+- Use type hints everywhere, prefer dataclasses/pydantic models for payloads.
+- Keep endpoints and WebSocket contracts exactly as documented in README unless I say otherwise.
+- Never hardcode secrets or API keys. Use `ENV` and `.env.example`.
+- Prefer pure-async patterns. No blocking calls in request or WS handlers.
+
+## Dev style
+- Small functions; fail-fast validation; return precise HTTP/WS errors (see schemas).
+- Log with context: lobby, player, action. No PII or secrets in logs.
+- Before writing new code, search for existing utils/models you can reuse.

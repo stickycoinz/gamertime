@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Party Game Platform</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Home Screen -->
+        <div id="home-screen" class="screen active">
+            <div class="container">
+                <h1>🎮 Party Game Platform</h1>
+                <p>Real-time multiplayer party games</p>
+                
+                <div class="game-selection">
+                    <h2>Choose Your Game</h2>
+                    <div class="game-cards">
+                        <div class="game-card" data-game="clicker">
+                            <h3>👆 Clicker Challenge</h3>
+                            <p>10-second button-mash race.<br>Tap as fast as you can!</p>
+                        </div>
+                        <div class="game-card" data-game="trivia">
+                            <h3>🧠 Trivia Challenge</h3>
+                            <p>Answer questions fast.<br>First to buzz in wins!</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="actions">
+                    <div class="host-section">
+                        <h3>Host a Game</h3>
+                        <input type="text" id="host-name" placeholder="Your name" maxlength="30">
+                        <button id="create-lobby-btn" disabled>Create Lobby</button>
+                    </div>
+                    
+                    <div class="join-section">
+                        <h3>Join a Game</h3>
+                        <input type="text" id="room-code" placeholder="Room Code" maxlength="6">
+                        <input type="text" id="player-name" placeholder="Your name" maxlength="30">
+                        <button id="join-lobby-btn" disabled>Join Lobby</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Lobby Screen -->
+        <div id="lobby-screen" class="screen">
+            <div class="container">
+                <div class="lobby-header">
+                    <h1 id="lobby-title">Game Lobby</h1>
+                    <div class="lobby-info">
+                        <span id="room-code-display"></span>
+                        <span id="game-type-display"></span>
+                    </div>
+                </div>
+                
+                <div class="players-section">
+                    <h2>Players</h2>
+                    <div id="players-list"></div>
+                </div>
+                
+                <div class="lobby-actions">
+                    <button id="ready-btn" class="ready-btn">Ready</button>
+                    <button id="start-game-btn" class="host-only" style="display: none;">Start Game</button>
+                    <button id="leave-lobby-btn">Leave Lobby</button>
+                </div>
+                
+                <div class="chat-section">
+                    <h3>Chat</h3>
+                    <div id="chat-messages"></div>
+                    <div class="chat-input">
+                        <input type="text" id="chat-input" placeholder="Type a message..." maxlength="200">
+                        <button id="send-chat-btn">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Game Screen -->
+        <div id="game-screen" class="screen">
+            <div class="container">
+                <div class="game-header">
+                    <h1 id="game-title">Game in Progress</h1>
+                    <div class="game-info">
+                        <span id="timer-display">10</span>
+                        <span id="game-status">Get Ready!</span>
+                    </div>
+                </div>
+                
+                <!-- Clicker Game UI -->
+                <div id="clicker-game" class="game-content" style="display: none;">
+                    <div class="clicker-area">
+                        <button id="click-btn" class="click-button" disabled>
+                            <span class="click-text">CLICK!</span>
+                            <span class="click-count">0</span>
+                        </button>
+                    </div>
+                    
+                    <div class="live-scores">
+                        <h3>Live Scores</h3>
+                        <div id="clicker-scores"></div>
+                    </div>
+                </div>
+                
+                <!-- Trivia Game UI -->
+                <div id="trivia-game" class="game-content" style="display: none;">
+                    <div class="trivia-area">
+                        <div id="question-display">
+                            <h3 id="question-text">Question will appear here...</h3>
+                            <div id="question-options"></div>
+                        </div>
+                        
+                        <div class="trivia-actions">
+                            <button id="buzz-btn" class="buzz-button" disabled>🔔 BUZZ!</button>
+                            <div id="answer-options" style="display: none;"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="trivia-scores">
+                        <h3>Scores</h3>
+                        <div id="trivia-scores"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Results Screen -->
+        <div id="results-screen" class="screen">
+            <div class="container">
+                <h1>🏆 Game Results</h1>
+                
+                <div class="winner-announcement">
+                    <h2 id="winner-text">Winner!</h2>
+                </div>
+                
+                <div class="score-cards">
+                    <h3>Final Scores</h3>
+                    <div id="final-scores"></div>
+                </div>
+                
+                <div class="results-actions">
+                    <button id="play-again-btn" class="host-only" style="display: none;">Play Again</button>
+                    <button id="back-to-lobby-btn">Back to Lobby</button>
+                    <button id="leave-game-btn">Leave Game</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Status Messages -->
+    <div id="status-messages"></div>
+    
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

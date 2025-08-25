@@ -1,0 +1,37 @@
+---
+title: Deploy & Ops
+type: agent
+description: Conventions for Docker, process flags, health endpoints, and monitoring.
+---
+
+# Deploy Rules
+
+## Application Server
+- Run: `uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}`
+- Use appropriate worker count for production
+- Configure proper timeout settings for WebSocket connections
+
+## Health & Monitoring
+- Expose `/health` as liveness; no DB calls in health.
+- Implement readiness checks for dependencies
+- Use structured logging for operations monitoring
+
+## WebSocket Management
+- WS idle timeout + heartbeat pings; close codes per README.
+- Handle graceful shutdowns for active connections
+- Implement connection limits and rate limiting
+
+## Environment Configuration
+- Use environment variables for all configuration
+- Provide sensible defaults for development
+- Document all required environment variables
+
+## Scaling Considerations
+- Design for horizontal scaling with Redis backend
+- Implement proper load balancer health checks
+- Handle session affinity for WebSocket connections
+
+## Security in Production
+- Use HTTPS/WSS in production
+- Configure proper CORS settings
+- Implement rate limiting and DDoS protection

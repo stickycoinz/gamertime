@@ -1,0 +1,28 @@
+---
+title: State & Redis (Design)
+type: agent
+description: How to introduce Redis safely behind a storage interface for horizontal scaling.
+---
+
+# State/Redis Rules
+
+## Storage Interface
+- Keep a `Storage` interface with methods: get_lobby, save_lobby, list_lobbies, upsert_player, remove_player, publish(event).
+- Redis impl must be drop-in; **no direct Redis calls** in routers or game logic.
+- Use pub/sub for room broadcasts; keep payloads identical to in-memory messages.
+
+## Migration Strategy
+- Current in-memory implementation should remain default
+- Redis backend introduced as optional configuration
+- Same interface contract for both implementations
+- No code changes required in business logic when switching
+
+## Testing
+- Provide in-memory fake implementing the same interface
+- All tests should pass with both storage backends
+- Mock Redis for unit tests, real Redis for integration tests
+
+## Data Consistency
+- Use Redis transactions for multi-key operations
+- Handle connection failures gracefully
+- Implement proper cleanup on lobby closure

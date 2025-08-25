@@ -1,0 +1,27 @@
+---
+title: FastAPI & Schemas
+type: auto
+globs:
+  - "app/**/*.py"
+description: Rules for FastAPI routers, schemas, and utils in app/**
+alwaysApply: false
+---
+
+# FastAPI Rules
+
+## Structure
+- REST endpoints go in `app/routers/`.
+- Request/response shapes live in `app/schemas/` (Pydantic v2).
+- Return codes strictly: 400/403/404/409 as in README; include `detail` strings.
+- Any shared behavior (IDs, storage, errors) must call `app/utils/*`.
+
+## Validation & Error Handling
+- Validate at the edge with Pydantic models
+- Raise HTTPException with precise reason codes
+- Never mutate global state from sync code
+- Everything that touches lobby/player state is async and guarded by a lock
+
+## Code Organization
+- Keep routers focused and small
+- Use dependency injection for shared resources
+- Separate business logic from HTTP layer

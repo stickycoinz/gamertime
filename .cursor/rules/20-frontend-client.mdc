@@ -1,0 +1,29 @@
+---
+title: Frontend Client
+type: auto
+globs:
+  - "static/**/*"
+description: Vanilla JS client rules for WS UX and state sync.
+---
+
+# Client Rules
+
+## WebSocket State Management
+- Reflect server events 1:1. On `buzz_lockout`, disable buttons & show winner. On `buzzer_cleared`, re-enable.
+- No client-side timers that affect scoring. Display only.
+- Handle connection drops with auto-reconnect logic
+
+## UI Consistency
+- Show stable IDs (player name + short hash) in the UI.
+- Use consistent styling patterns across all game screens
+- Provide clear feedback for all user actions
+
+## Security & Trust
+- Never trust client—server is source of truth; anti-cheat is server-side.
+- Validate all user inputs before sending to server
+- No sensitive game logic in client code
+
+## Technology Constraints
+- Minimal vanilla JS; no frameworks unless requested.
+- Use modern ES6+ features but maintain broad browser compatibility
+- Keep bundle size minimal for fast loading

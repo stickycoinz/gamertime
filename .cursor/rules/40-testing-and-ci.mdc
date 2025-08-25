@@ -1,0 +1,33 @@
+---
+title: Testing & CI
+type: agent
+description: How to write API and WS tests consistently.
+---
+
+# Testing Rules
+
+## Test Framework
+- Use pytest; name tests `test_*.py`.
+- Use pytest-asyncio for async test support
+- Organize tests to mirror app structure
+
+## WebSocket Testing
+- For WS: test "first-in lockout" and "re-buzz after new_question".
+- Use websockets test clients or Starlette's TestClient with lifespan="on".
+- Test connection handling, disconnections, and edge cases
+
+## Coverage Requirements
+- Add a smoke test for lobby lifecycle: create→join→ready→start→finish.
+- Test all error conditions and edge cases
+- Maintain high test coverage for business logic
+
+## Test Data & Fixtures
+- Use factories for test data generation
+- Clean up test state between tests
+- Mock external dependencies consistently
+
+## CI Pipeline
+- Run tests on multiple Python versions
+- Include linting and formatting checks
+- Test both in-memory and Redis storage backends
+- Performance testing for concurrent connections
