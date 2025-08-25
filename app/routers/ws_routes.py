@@ -63,11 +63,23 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_id: st
         updated_player.connected = False
         await storage.upsert_player(room_code, updated_player)
         
-        # Notify lobby of disconnection
-        await storage.publish(room_code, "player_disconnected", {
-            "player_id": player_id,
-            "player_name": player["name"]
-        })
+        # Check if this was the host
+        lobby = await storage.get_lobby(room_code)
+        if lobby and player_id == lobby["host_player_id"]:
+            print(f"Host {player['name']} disconnected from room {room_code}, cleaning up lobby")
+            # Clean up room when host leaves
+            await storage.remove_lobby(room_code)
+            # Notify remaining players
+            await storage.publish(room_code, "lobby_closed", {
+                "message": f"Host {player['name']} left. Room {room_code} has been closed.",
+                "reason": "host_disconnected"
+            })
+        else:
+            # Notify lobby of regular player disconnection
+            await storage.publish(room_code, "player_disconnected", {
+                "player_id": player_id,
+                "player_name": player["name"]
+            })
     
     except Exception as e:
         print(f"WebSocket error: {e}")

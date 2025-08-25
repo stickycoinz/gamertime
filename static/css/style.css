@@ -618,3 +618,69 @@ button.primary {
         grid-template-columns: 1fr;
     }
 }
+
+/* Buzzer Table Styles */
+.buzzer-table-container {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 20px;
+    border-radius: 15px;
+    margin: 20px 0;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.buzzer-table-container h3 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+}
+
+.buzzer-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 1em;
+}
+
+.buzzer-table th {
+    background: #3498db;
+    color: white;
+    padding: 12px 8px;
+    text-align: center;
+    border-radius: 5px;
+}
+
+.buzzer-table td {
+    padding: 10px 8px;
+    text-align: center;
+    border-bottom: 1px solid #ecf0f1;
+}
+
+.buzzer-table tr:nth-child(even) {
+    background: #f8f9fa;
+}
+
+.buzzer-table tr:hover {
+    background: #e3f2fd;
+}
+
+.buzz-position {
+    font-weight: bold;
+    color: #e74c3c;
+    font-size: 1.1em;
+}
+
+.buzz-time {
+    font-family: monospace;
+    color: #27ae60;
+}
+
+.buzz-diff {
+    font-family: monospace;
+    color: #f39c12;
+    font-weight: bold;
+}
+
+.buzz-diff.first {
+    color: #27ae60;
+    font-weight: bold;
+}

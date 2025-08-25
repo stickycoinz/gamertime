@@ -199,6 +199,12 @@ class GameClient {
     
     // WebSocket Connection
     connectWebSocket() {
+        // Check if we have valid lobby data before connecting
+        if (!this.lobbyData || !this.lobbyData.room_code || !this.playerData || !this.playerData.player_id) {
+            console.warn('Cannot connect WebSocket: missing lobby or player data');
+            return;
+        }
+        
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/${this.lobbyData.room_code}/${this.playerData.player_id}`;
         
@@ -295,13 +301,19 @@ class GameClient {
                 this.handleNewQuestion(data);
                 break;
                 
-                    case 'player_buzzed':
-            this.handlePlayerBuzzed(data);
-            break;
-            
-        case 'buzzer_cleared':
-            this.handleBuzzerCleared(data);
-            break;
+                                case 'player_buzzed':
+                this.handlePlayerBuzzed(data);
+                this.updateBuzzerTable(data.buzz_table);
+                break;
+
+            case 'buzzer_cleared':
+                this.handleBuzzerCleared(data);
+                this.clearBuzzerTable();
+                break;
+
+            case 'lobby_closed':
+                this.handleLobbyClosed(data);
+                break;
                 
             case 'answer_result':
                 this.handleAnswerResult(data);
@@ -587,6 +599,85 @@ class GameClient {
         if (buzzOrderDiv) {
             buzzOrderDiv.remove();
         }
+    }
+
+    updateBuzzerTable(buzzTable) {
+        if (!buzzTable || buzzTable.length === 0) {
+            this.clearBuzzerTable();
+            return;
+        }
+
+        const container = document.getElementById('buzzer-table-container');
+        const tableBody = document.getElementById('buzzer-table-body');
+        
+        if (container && tableBody) {
+            // Show the table
+            container.style.display = 'block';
+            
+            // Clear existing rows
+            tableBody.innerHTML = '';
+            
+            // Add rows for each buzz
+            buzzTable.forEach((buzz, index) => {
+                const row = document.createElement('tr');
+                
+                const positionCell = document.createElement('td');
+                positionCell.textContent = buzz.position;
+                positionCell.className = 'buzz-position';
+                
+                const nameCell = document.createElement('td');
+                nameCell.textContent = buzz.player_name;
+                
+                const timeCell = document.createElement('td');
+                timeCell.textContent = `${Math.round(buzz.time_since_question)}ms`;
+                timeCell.className = 'buzz-time';
+                
+                const diffCell = document.createElement('td');
+                if (buzz.time_diff === null || buzz.time_diff === undefined) {
+                    diffCell.textContent = 'First!';
+                    diffCell.className = 'buzz-diff first';
+                } else {
+                    diffCell.textContent = `+${Math.round(buzz.time_diff)}ms`;
+                    diffCell.className = 'buzz-diff';
+                }
+                
+                row.appendChild(positionCell);
+                row.appendChild(nameCell);
+                row.appendChild(timeCell);
+                row.appendChild(diffCell);
+                
+                tableBody.appendChild(row);
+            });
+        }
+    }
+
+    clearBuzzerTable() {
+        const container = document.getElementById('buzzer-table-container');
+        const tableBody = document.getElementById('buzzer-table-body');
+        
+        if (container) {
+            container.style.display = 'none';
+        }
+        
+        if (tableBody) {
+            tableBody.innerHTML = '';
+        }
+    }
+
+    handleLobbyClosed(data) {
+        console.log('Lobby closed:', data);
+        this.showMessage(data.message, 'error');
+        
+        // Close WebSocket
+        if (this.websocket) {
+            this.websocket.close();
+        }
+        
+        // Reset state and go back to home
+        setTimeout(() => {
+            this.resetState();
+            this.showScreen('home-screen');
+        }, 3000);
     }
     
     showAnswerOptions() {

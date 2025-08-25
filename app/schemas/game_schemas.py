@@ -60,6 +60,8 @@ class TriviaGameState(BaseModel):
     is_active: bool = False
     round_locked: bool = False
     already_answered: set[str] = set()
+    buzz_times: List[Dict] = []  # Track buzz timestamps with player info
+    question_start_time: Optional[float] = None  # Track when question started
 
 GameState = Union[ClickerGameState, TriviaGameState]
 

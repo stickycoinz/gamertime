@@ -2,6 +2,7 @@
 Trivia Game Logic with questions and buzzer system
 """
 import asyncio
+import time
 from typing import Dict, List, Optional
 from datetime import datetime
 from app.schemas.game_schemas import TriviaGameState, TriviaQuestion, Player, ScoreCard, GameResults
@@ -77,6 +78,8 @@ class TriviaGame:
         self.state.round_locked = False
         self.state.already_answered = set()
         self.state.answers = {}
+        self.state.buzz_times = []  # Clear buzz times
+        self.state.question_start_time = time.time()  # Track when question starts
         
         # Get current question
         self.state.current_question = self.questions[self.state.question_number]
@@ -118,15 +121,40 @@ class TriviaGame:
             player_id
         )
         
+        # Track buzz time and calculate difference
+        buzz_time = time.time()
+        time_since_question = buzz_time - (self.state.question_start_time or buzz_time)
+        
+        # Calculate difference from first buzz
+        time_diff = None
+        if len(self.state.buzz_times) > 0:
+            first_buzz_time = self.state.buzz_times[0]["buzz_time"]
+            time_diff = (buzz_time - first_buzz_time) * 1000  # Convert to milliseconds
+        
+        # Store buzz info
+        buzz_info = {
+            "player_id": player_id,
+            "player_name": player_name,
+            "buzz_time": buzz_time,
+            "time_since_question": time_since_question * 1000,  # Convert to ms
+            "time_diff": time_diff,
+            "position": len(self.state.buzz_times) + 1
+        }
+        self.state.buzz_times.append(buzz_info)
+        
         # Get buzz position
         position = len(self.state.already_answered)
         
-        # Broadcast buzz with position (NO LOCKOUT)
+        # Broadcast buzz with timing info (NO LOCKOUT)
         await storage.publish(self.room_code, "player_buzzed", {
             "player_id": player_id,
             "player_name": player_name,
             "position": position,
             "total_buzzed": len(self.state.already_answered),
+            "buzz_time": buzz_time,
+            "time_since_question": time_since_question * 1000,
+            "time_diff": time_diff,
+            "buzz_table": self.state.buzz_times,  # Send full table for UI
             "message": f"{player_name} buzzed in #{position}!"
         })
         
