@@ -357,6 +357,10 @@ class GameClient {
             case 'buzz_blocked':
                 this.handleBuzzBlocked(data);
                 break;
+
+            case 'game_stopped':
+                this.handleGameStopped(data);
+                break;
                 
             case 'answer_result':
                 this.handleAnswerResult(data);
@@ -981,11 +985,25 @@ class GameClient {
                 const actionCell = document.createElement('td');
                 actionCell.className = 'host-only';
                 if (this.playerData.is_host) {
-                    actionCell.innerHTML = `
-                        <button class="award-points-btn" onclick="gameClient.awardPoints('${buzz.player_id}', 5)">+5</button>
-                        <button class="award-points-btn" onclick="gameClient.awardPoints('${buzz.player_id}', 10)">+10</button>
-                        <button class="award-points-btn" onclick="gameClient.awardPoints('${buzz.player_id}', 15)">+15</button>
-                    `;
+                    // Create buttons with proper event listeners instead of onclick
+                    const btn5 = document.createElement('button');
+                    btn5.className = 'award-points-btn';
+                    btn5.textContent = '+5';
+                    btn5.addEventListener('click', () => this.awardPoints(buzz.player_id, 5));
+                    
+                    const btn10 = document.createElement('button');
+                    btn10.className = 'award-points-btn';
+                    btn10.textContent = '+10';
+                    btn10.addEventListener('click', () => this.awardPoints(buzz.player_id, 10));
+                    
+                    const btn15 = document.createElement('button');
+                    btn15.className = 'award-points-btn';
+                    btn15.textContent = '+15';
+                    btn15.addEventListener('click', () => this.awardPoints(buzz.player_id, 15));
+                    
+                    actionCell.appendChild(btn5);
+                    actionCell.appendChild(btn10);
+                    actionCell.appendChild(btn15);
                 } else {
                     actionCell.textContent = '-';
                 }
@@ -1114,6 +1132,16 @@ class GameClient {
         if (data.player_id === this.playerData.player_id) {
             this.showMessage(data.message, 'error');
         }
+    }
+
+    handleGameStopped(data) {
+        console.log('Game stopped:', data);
+        this.showMessage(data.message || 'Game ended by host', 'warning');
+        
+        // Return to lobby after a short delay
+        setTimeout(() => {
+            this.showScreen('lobby-screen');
+        }, 2000);
     }
     
     showAnswerOptions() {
