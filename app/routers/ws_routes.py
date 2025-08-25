@@ -3,6 +3,7 @@ WebSocket routes for real-time game communication
 """
 import json
 import asyncio
+import time
 from typing import Dict, Set
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.schemas.game_schemas import PlayerAction, GameAction, Player
@@ -12,8 +13,7 @@ from app.game_logic.trivia_game import TriviaGame, active_trivia_games
 
 router = APIRouter()
 
-# Track WebSocket connections
-connections: Dict[str, Set[WebSocket]] = {}
+# WebSocket connections are now managed by storage
 
 @router.websocket("/ws/{room_code}/{player_id}")
 async def websocket_endpoint(websocket: WebSocket, room_code: str, player_id: str):
@@ -32,10 +32,8 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_id: st
         await websocket.close(code=4003, reason="Player not in lobby")
         return
     
-    # Add connection to room
-    if room_code not in connections:
-        connections[room_code] = set()
-    connections[room_code].add(websocket)
+    # Add connection to room using storage
+    storage.add_connection(room_code, websocket)
     
     # Update player connection status
     updated_player = Player(**player)
@@ -43,7 +41,7 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_id: st
     await storage.upsert_player(room_code, updated_player)
     
     # Notify lobby of connection
-    await broadcast_to_room(room_code, "player_connected", {
+    await storage.publish(room_code, "player_connected", {
         "player_id": player_id,
         "player_name": player["name"]
     })
@@ -58,15 +56,15 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_id: st
             await handle_websocket_message(room_code, player_id, message, websocket)
             
     except WebSocketDisconnect:
-        # Remove connection
-        connections[room_code].discard(websocket)
+        # Remove connection using storage
+        storage.remove_connection(room_code, websocket)
         
         # Update player connection status
         updated_player.connected = False
         await storage.upsert_player(room_code, updated_player)
         
         # Notify lobby of disconnection
-        await broadcast_to_room(room_code, "player_disconnected", {
+        await storage.publish(room_code, "player_disconnected", {
             "player_id": player_id,
             "player_name": player["name"]
         })
@@ -133,8 +131,8 @@ async def handle_player_ready(room_code: str, player_id: str, is_ready: bool):
     
     await storage.save_lobby(room_code, lobby)
     
-    # Broadcast lobby update
-    await broadcast_to_room(room_code, "lobby_updated", {
+    # Broadcast lobby update using storage.publish
+    await storage.publish(room_code, "lobby_updated", {
         "players": lobby["players"],
         "all_ready": all(p["is_ready"] for p in lobby["players"])
     })
@@ -149,12 +147,12 @@ async def handle_chat_message(room_code: str, player_id: str, message: str):
     if not player:
         return
     
-    # Broadcast chat message
-    await broadcast_to_room(room_code, "chat_message", {
+    # Broadcast chat message using storage.publish
+    await storage.publish(room_code, "chat_message", {
         "player_id": player_id,
         "player_name": player["name"],
         "message": message[:200],  # Limit message length
-        "timestamp": str(asyncio.get_event_loop().time())
+        "timestamp": str(time.time())
     })
 
 async def handle_game_action(room_code: str, player_id: str, data: Dict):
@@ -252,21 +250,4 @@ async def end_game(room_code: str):
         lobby["status"] = "waiting"
         await storage.save_lobby(room_code, lobby)
 
-async def broadcast_to_room(room_code: str, event_type: str, data: Dict):
-    """Broadcast message to all connections in a room"""
-    if room_code not in connections:
-        return
-    
-    message = {"type": event_type, "data": data}
-    
-    # Send to all connections in room
-    disconnected = set()
-    for ws in connections[room_code]:
-        try:
-            await ws.send_json(message)
-        except Exception:
-            # Mark for removal
-            disconnected.add(ws)
-    
-    # Remove disconnected WebSockets
-    connections[room_code] -= disconnected
+# Removed broadcast_to_room - now using storage.publish()
