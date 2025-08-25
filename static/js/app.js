@@ -78,7 +78,14 @@ class GameClient {
     async createLobby() {
         const hostName = document.getElementById('host-name').value.trim();
         
+        if (!this.selectedGame) {
+            this.showMessage('Please select a game type first!', 'error');
+            return;
+        }
+        
         try {
+            console.log('Creating lobby:', { host_name: hostName, game_type: this.selectedGame });
+            
             const response = await fetch('/api/lobbies', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -88,22 +95,28 @@ class GameClient {
                 })
             });
             
+            console.log('Response status:', response.status);
+            
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.detail || 'Failed to create lobby');
+                console.error('API Error:', error);
+                throw new Error(error.detail || `Server error: ${response.status}`);
             }
             
             const lobby = await response.json();
+            console.log('Lobby created:', lobby);
+            
             this.lobbyData = lobby;
             this.playerData = lobby.players.find(p => p.is_host);
             
-            this.showMessage('Lobby created successfully!', 'success');
+            this.showMessage(`🎉 Lobby created! Room code: ${lobby.room_code}`, 'success');
             this.showScreen('lobby-screen');
             this.updateLobbyUI();
             this.connectWebSocket();
             
         } catch (error) {
-            this.showMessage(error.message, 'error');
+            console.error('Create lobby error:', error);
+            this.showMessage(`❌ ${error.message}`, 'error');
         }
     }
     
@@ -112,6 +125,8 @@ class GameClient {
         const playerName = document.getElementById('player-name').value.trim();
         
         try {
+            console.log('Joining lobby:', { room_code: roomCode, player_name: playerName });
+            
             const response = await fetch('/api/lobbies/join', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -121,23 +136,29 @@ class GameClient {
                 })
             });
             
+            console.log('Join response status:', response.status);
+            
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.detail || 'Failed to join lobby');
+                console.error('Join API Error:', error);
+                throw new Error(error.detail || `Failed to join lobby: ${response.status}`);
             }
             
             const lobby = await response.json();
+            console.log('Joined lobby:', lobby);
+            
             this.lobbyData = lobby;
             this.playerData = lobby.players.find(p => p.name === playerName);
             this.selectedGame = lobby.game_type;
             
-            this.showMessage('Joined lobby successfully!', 'success');
+            this.showMessage(`🎉 Joined ${lobby.room_code}!`, 'success');
             this.showScreen('lobby-screen');
             this.updateLobbyUI();
             this.connectWebSocket();
             
         } catch (error) {
-            this.showMessage(error.message, 'error');
+            console.error('Join lobby error:', error);
+            this.showMessage(`❌ ${error.message}`, 'error');
         }
     }
     
@@ -275,8 +296,8 @@ class GameClient {
     
     // Lobby UI Updates
     updateLobbyUI() {
-        document.getElementById('room-code-display').textContent = `Room: ${this.lobbyData.room_code}`;
-        document.getElementById('game-type-display').textContent = `Game: ${this.getGameDisplayName()}`;
+        document.getElementById('room-code-display').textContent = this.lobbyData.room_code;
+        document.getElementById('game-type-display').textContent = `🎮 ${this.getGameDisplayName()}`;
         
         this.updatePlayersList();
         this.updateLobbyActions();
