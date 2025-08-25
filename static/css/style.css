@@ -684,3 +684,51 @@ button.primary {
     color: #27ae60;
     font-weight: bold;
 }
+
+/* Answer Selection Status */
+.answer-status {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 15px;
+    border-radius: 10px;
+    margin: 10px 0;
+    text-align: center;
+    border: 2px solid #3498db;
+}
+
+.answer-status.selected {
+    border-color: #27ae60;
+    background: rgba(39, 174, 96, 0.1);
+}
+
+.answer-status.selected p {
+    color: #27ae60;
+    font-weight: bold;
+}
+
+.answer-status.waiting p {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+/* Enhanced option styling */
+.option-card {
+    position: relative;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.option-card.selected {
+    background: #27ae60 !important;
+    color: white !important;
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+}
+
+.option-card.selected::after {
+    content: "✓";
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 1.2em;
+    font-weight: bold;
+}

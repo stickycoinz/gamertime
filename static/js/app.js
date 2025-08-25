@@ -309,10 +309,19 @@ class GameClient {
             case 'buzzer_cleared':
                 this.handleBuzzerCleared(data);
                 this.clearBuzzerTable();
+                this.clearAnswerSelection();
                 break;
 
             case 'lobby_closed':
                 this.handleLobbyClosed(data);
+                break;
+
+            case 'answer_selected':
+                this.handleAnswerSelected(data);
+                break;
+
+            case 'buzz_error':
+                this.handleBuzzError(data);
                 break;
                 
             case 'answer_result':
@@ -530,19 +539,52 @@ class GameClient {
         document.getElementById('question-text').textContent = data.question;
         document.getElementById('game-status').textContent = `Question ${data.question_number}/${data.total_questions}`;
         
-        // Show options (read-only)
+        // Clear previous selection
+        this.clearAnswerSelection();
+        
+        // Show clickable options for answer selection
         const optionsDiv = document.getElementById('question-options');
         optionsDiv.innerHTML = '';
         data.options.forEach((option, index) => {
             const optionDiv = document.createElement('div');
             optionDiv.className = 'option-card';
             optionDiv.textContent = `${index + 1}. ${option}`;
+            optionDiv.addEventListener('click', () => this.selectAnswer(index, option));
             optionsDiv.appendChild(optionDiv);
         });
         
-        // Enable buzz button
-        document.getElementById('buzz-btn').disabled = false;
+        // Show answer selection status
+        const statusDiv = document.getElementById('answer-selection-status');
+        const statusText = document.getElementById('selected-answer-text');
+        if (statusDiv && statusText) {
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'answer-status waiting';
+            statusText.textContent = 'Select an answer first!';
+        }
+        
+        // Disable buzz button until answer selected
+        const buzzBtn = document.getElementById('buzz-btn');
+        buzzBtn.disabled = true;
+        buzzBtn.textContent = '🔔 Select Answer First!';
         document.getElementById('answer-options').style.display = 'none';
+    }
+
+    selectAnswer(index, text) {
+        // Clear previous selections
+        const options = document.querySelectorAll('.option-card');
+        options.forEach(option => option.classList.remove('selected'));
+        
+        // Mark selected option
+        options[index].classList.add('selected');
+        
+        // Store selection
+        this.selectedAnswer = index;
+        
+        // Send selection to server
+        this.sendWebSocketMessage('player_action', {
+            action: 'select_answer',
+            answer_index: index
+        });
     }
     
     handleBuzz() {
@@ -678,6 +720,62 @@ class GameClient {
             this.resetState();
             this.showScreen('home-screen');
         }, 3000);
+    }
+
+    handleAnswerSelected(data) {
+        // Only update UI for the current player
+        if (data.player_id === this.playerData.player_id) {
+            const statusDiv = document.getElementById('answer-selection-status');
+            const statusText = document.getElementById('selected-answer-text');
+            
+            if (statusDiv && statusText) {
+                statusDiv.style.display = 'block';
+                statusDiv.className = 'answer-status selected';
+                statusText.textContent = `Selected: ${data.selected_text}`;
+            }
+            
+            // Enable buzz button
+            const buzzBtn = document.getElementById('buzz-btn');
+            if (buzzBtn) {
+                buzzBtn.disabled = false;
+                buzzBtn.textContent = '🔔 BUZZ!';
+            }
+        }
+    }
+
+    handleBuzzError(data) {
+        // Only show error for the current player
+        if (data.player_id === this.playerData.player_id) {
+            this.showMessage(data.message, 'error');
+        }
+    }
+
+    clearAnswerSelection() {
+        // Clear selected answer state
+        this.selectedAnswer = null;
+        
+        // Reset answer selection UI
+        const statusDiv = document.getElementById('answer-selection-status');
+        const statusText = document.getElementById('selected-answer-text');
+        
+        if (statusDiv && statusText) {
+            statusDiv.style.display = 'none';
+            statusDiv.className = 'answer-status';
+            statusText.textContent = 'Select an answer first!';
+        }
+        
+        // Clear option selections
+        const options = document.querySelectorAll('.option-card');
+        options.forEach(option => {
+            option.classList.remove('selected');
+        });
+        
+        // Disable buzz button until answer selected
+        const buzzBtn = document.getElementById('buzz-btn');
+        if (buzzBtn) {
+            buzzBtn.disabled = true;
+            buzzBtn.textContent = '🔔 Select Answer First!';
+        }
     }
     
     showAnswerOptions() {

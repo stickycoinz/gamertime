@@ -56,6 +56,7 @@ class TriviaGameState(BaseModel):
     total_questions: int = 5
     scores: Dict[str, int] = {}  # player_id -> total_score
     answers: Dict[str, int] = {}  # player_id -> answer_index
+    selected_answers: Dict[str, int] = {}  # player_id -> selected_answer (before buzzing)
     time_remaining: Optional[int] = None
     is_active: bool = False
     round_locked: bool = False
@@ -71,7 +72,7 @@ class WSMessage(BaseModel):
     data: Dict
 
 class PlayerAction(BaseModel):
-    action: Literal["ready", "unready", "click", "answer", "buzz"]
+    action: Literal["ready", "unready", "click", "answer", "buzz", "select_answer"]
     data: Optional[Dict] = {}
 
 class GameAction(BaseModel):

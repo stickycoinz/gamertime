@@ -208,8 +208,16 @@ async def handle_player_action(room_code: str, player_id: str, data: Dict):
             game = active_trivia_games[room_code]
             await game.handle_buzz(player_id)
     
+    elif action == "select_answer":
+        # Handle trivia answer selection (before buzzing)
+        if room_code in active_trivia_games:
+            game = active_trivia_games[room_code]
+            answer_index = data.get("answer_index")
+            if answer_index is not None:
+                await game.handle_answer_selection(player_id, answer_index)
+    
     elif action == "answer":
-        # Handle trivia game answers
+        # Handle trivia game answers (auto-triggered after buzz)
         if room_code in active_trivia_games:
             game = active_trivia_games[room_code]
             answer_index = data.get("answer_index")

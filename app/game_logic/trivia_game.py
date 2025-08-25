@@ -78,6 +78,7 @@ class TriviaGame:
         self.state.round_locked = False
         self.state.already_answered = set()
         self.state.answers = {}
+        self.state.selected_answers = {}  # Clear selected answers
         self.state.buzz_times = []  # Clear buzz times
         self.state.question_start_time = time.time()  # Track when question starts
         
@@ -103,12 +104,21 @@ class TriviaGame:
         self.timer_task = asyncio.create_task(self._run_question_timer())
     
     async def handle_buzz(self, player_id: str) -> bool:
-        """Handle player buzz attempt - FIXED: No lockout, accept all buzzes"""
+        """Handle player buzz attempt - Requires answer selection first"""
         if not self.state.is_active or not self.state.current_question:
             return False
         
         # Check if player already buzzed this round
         if player_id in self.state.already_answered:
+            return False
+        
+        # NEW: Check if player has selected an answer first
+        if player_id not in self.state.selected_answers:
+            # Broadcast error message
+            await storage.publish(self.room_code, "buzz_error", {
+                "player_id": player_id,
+                "message": "You must select an answer before buzzing!"
+            })
             return False
         
         # Add player to buzzed list (NO LOCKOUT - accept all buzzes)
@@ -159,25 +169,73 @@ class TriviaGame:
         })
         
         return True
-    
-    async def handle_answer(self, player_id: str, answer_index: int) -> bool:
-        """Handle player answer submission"""
+
+    async def handle_answer_selection(self, player_id: str, answer_index: int) -> bool:
+        """Handle player selecting an answer (before buzzing)"""
         if not self.state.is_active or not self.state.current_question:
             return False
         
-        # Only the player who buzzed can answer
-        if not self.state.round_locked or player_id not in self.state.already_answered:
+        # Validate answer index
+        if answer_index < 0 or answer_index >= len(self.state.current_question.options):
             return False
         
-        # Record answer
-        self.state.answers[player_id] = answer_index
+        # Store selected answer
+        self.state.selected_answers[player_id] = answer_index
+        
+        # Get player name
+        lobby = await storage.get_lobby(self.room_code)
+        player_name = next(
+            (p["name"] for p in lobby["players"] if p["player_id"] == player_id),
+            player_id
+        )
+        
+        # Broadcast answer selection confirmation (only to that player)
+        await storage.publish(self.room_code, "answer_selected", {
+            "player_id": player_id,
+            "player_name": player_name,
+            "selected_option": answer_index,
+            "selected_text": self.state.current_question.options[answer_index],
+            "message": f"Answer selected: {self.state.current_question.options[answer_index]}"
+        })
+        
+        return True
+    
+    async def handle_answer(self, player_id: str, answer_index: int) -> bool:
+        """Handle player answer submission - Auto-score based on buzz and selected answer"""
+        if not self.state.is_active or not self.state.current_question:
+            return False
+        
+        # Check if player buzzed and has selected answer
+        if player_id not in self.state.already_answered or player_id not in self.state.selected_answers:
+            return False
+        
+        # Use the player's pre-selected answer
+        selected_answer = self.state.selected_answers[player_id]
+        self.state.answers[player_id] = selected_answer
         
         # Check if correct
-        is_correct = answer_index == self.state.current_question.correct_answer
+        is_correct = selected_answer == self.state.current_question.correct_answer
+        points = 0
         
         if is_correct:
-            # Award points (more points for faster answers)
-            points = max(100 - (self.state.current_question.time_limit - self.state.time_remaining) * 5, 50)
+            # Award points based on buzz position (first gets more points)
+            buzz_position = next(
+                (buzz["position"] for buzz in self.state.buzz_times if buzz["player_id"] == player_id),
+                len(self.state.buzz_times)
+            )
+            
+            # Point system: 1st=100pts, 2nd=75pts, 3rd=50pts, others=25pts
+            if buzz_position == 1:
+                points = 100
+            elif buzz_position == 2:
+                points = 75
+            elif buzz_position == 3:
+                points = 50
+            else:
+                points = 25
+                
+            if player_id not in self.state.scores:
+                self.state.scores[player_id] = 0
             self.state.scores[player_id] += points
         
         # Get player name and correct answer text
@@ -187,21 +245,24 @@ class TriviaGame:
             player_id
         )
         correct_answer_text = self.state.current_question.options[self.state.current_question.correct_answer]
+        selected_answer_text = self.state.current_question.options[selected_answer]
         
         # Broadcast answer result
         await storage.publish(self.room_code, "answer_result", {
             "player_id": player_id,
             "player_name": player_name,
-            "answer_index": answer_index,
+            "selected_answer": selected_answer,
+            "selected_answer_text": selected_answer_text,
             "is_correct": is_correct,
             "correct_answer": self.state.current_question.correct_answer,
             "correct_answer_text": correct_answer_text,
-            "points_awarded": points if is_correct else 0,
-            "scores": self.state.scores
+            "points_awarded": points,
+            "scores": self.state.scores,
+            "buzz_position": next((buzz["position"] for buzz in self.state.buzz_times if buzz["player_id"] == player_id), 0)
         })
         
-        # Move to next question after delay
-        await asyncio.sleep(3)
+        # Move to next question after shorter delay
+        await asyncio.sleep(1.5)
         self.state.question_number += 1
         await self._next_question()
         
@@ -228,7 +289,7 @@ class TriviaGame:
                     "message": "Time's up! Moving to next question..."
                 })
                 
-                await asyncio.sleep(2)
+                await asyncio.sleep(1)
                 self.state.question_number += 1
                 await self._next_question()
                 
