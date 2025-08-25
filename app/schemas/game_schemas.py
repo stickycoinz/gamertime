@@ -19,13 +19,13 @@ class Player(PlayerBase):
 # Lobby Models
 class LobbyCreate(BaseModel):
     host_name: str = Field(..., min_length=1, max_length=30)
-    game_type: Literal["clicker", "trivia"] = "clicker"
+    game_type: Literal["clicker", "trivia", "buzzer"] = "clicker"
     custom_room_code: Optional[str] = Field(None, min_length=4, max_length=6)
 
 class LobbyResponse(BaseModel):
     room_code: str
     host_player_id: str
-    game_type: str
+    game_type: Literal["clicker", "trivia", "buzzer"]
     status: Literal["waiting", "starting", "active", "finished"]
     players: List[Player]
     created_at: datetime
